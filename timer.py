@@ -1,10 +1,12 @@
 from time import sleep
 import max7219
+import machine
 from machine import Pin, SoftSPI
 import network
 import ntptime
 import time
-lim=0
+
+lim=15
 t=3
 l=16
 spi = SoftSPI(baudrate=10000000, polarity=1, phase=0, sck=Pin(18), mosi=Pin(23),miso=Pin(32))
@@ -78,19 +80,17 @@ def boton_callback(pin):
             else:  
                 ciclo = True
                 #print("START")
-        sleep(0.3)  
+        #sleep(0.3)  
     else:
         B3s = False
-segundos=lim%60
-minutos=int(lim/60)%60
-#horas=int(lim/3600)
+    
 def display_print(minutos,segundos):
     display.fill(0)
     display2.fill(0)
     display3.fill(0)
-    display3.large_text(f"{minutos:02}:{segundos:02}", 8,1, t)
-    display2.large_text(f"{minutos:02}:{segundos:02}", 8,-7, t)
-    display.large_text(f"{minutos:02}:{segundos:02}",8,-15, t)
+    display3.large_text(f"{segundos:02}:{minutos:02}", 8,1, t)
+    display2.large_text(f"{segundos:02}:{minutos:02}", 8,-7, t)
+    display.large_text(f"{segundos:02}:{minutos:02}",8,-15, t)
     display.show()
     display2.show()
     display3.show()
@@ -115,12 +115,15 @@ def display_print_stop():
     display2.show()
     display3.show()
 def aumentar_minutos(pin):
+    #sleep(0.5)
     global lim, minutos
     lim += 60
     minutos += 1
     print(f"Cuenta regresiva:{minutos:02}:{segundos:02}")
     display_print(minutos,segundos)
+
 def disminuir_minutos(pin):
+    #sleep(0.5)
     global lim, minutos
     lim -= 60
     minutos -= 1
@@ -129,10 +132,11 @@ def disminuir_minutos(pin):
         #lim=0
     print(f"Cuenta regresiva:{minutos:02}:{segundos:02}")
     display_print(minutos,segundos)
-B1.irq(trigger=Pin.IRQ_FALLING, handler=disminuir_minutos)
-B2.irq(trigger=Pin.IRQ_FALLING, handler=aumentar_minutos)
-B3.irq(trigger=Pin.IRQ_FALLING, handler=boton_callback)
-B4.irq(trigger=Pin.IRQ_FALLING, handler=reloj_callback)
+
+#B1.irq(trigger=Pin.IRQ_FALLING, handler=disminuir_minutos)
+#B2.irq(trigger=Pin.IRQ_FALLING, handler=aumentar_minutos)
+#B3.irq(trigger=Pin.IRQ_FALLING, handler=boton_callback)
+#B4.irq(trigger=Pin.IRQ_FALLING, handler=reloj_callback)
 def timer():
         sleep(1)
         for x in range (lim,0,-1):
@@ -144,20 +148,64 @@ def timer():
             display_print(minutos,segundos)
             print(f"{minutos:02}:{segundos:02}")
             sleep(1)
-        
+btn_up= 1
+btn_down= 1
+btn_func= 1
+btn_ss = 1
+
+
+segundos=0
+minutos=lim
+#horas=int(lim/3600)
+print (lim, segundos, minutos)
 
 while True:
-    if ciclo:
+    display_print(minutos,segundos)
+    btn_up = B2.value()
+    btn_down = B1.value()
+    btn_func = B4.value()
+    btn_ss = B3.value()
+    if btn_up == 0:
+        lim +=1
+    if btn_down==0:
+        if lim>1:
+            lim -=1
+        
+    if btn_ss==0:
         display_print_start()
         print("START")
-        timer()
-        B3.irq(trigger=Pin.IRQ_FALLING, handler=boton_callback)
-        lim=0
-        segundos=0
-        minutos=0
-        display_print_stop()
-        print("STOP")
+        sleep(1)
+        counter = lim*60
+        delta =0
+        while counter >= 0:
+            start = time.ticks_ms() # get millisecond counter
+            minutos=counter%60
+            segundos=int(counter/60)%60
+            display_print(minutos,segundos)
+            counter -=1            
+            delta = time.ticks_diff(time.ticks_ms(), start)
+            print(counter,minutos, segundos, 1.0-delta/1000)
+            sleep(1.0-delta/1000)
+            if B3.value() == 0:
+                break
+        i=3
+        while i>=0:
+            display_print_stop()
+            print("STOP")
+            sleep(0.5)
+            display.fill(0)
+            display2.fill(0)
+            display3.fill(0)
+            display.show()
+            display2.show()
+            display3.show()
+            sleep(0.5)
+
+            i-=1
         ciclo = False
     if modo_reloj_activo:
         reloj(None)
-    sleep(0.1)
+    segundos=lim%60
+    minutos=int(lim/60)%60
+    display_print(minutos,segundos)
+    #sleep(0.1)
